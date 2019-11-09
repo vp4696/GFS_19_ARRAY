@@ -72,7 +72,9 @@ class Master_Server(rpyc.Service):
         return chunks
 
 
-# In[ ]:
+    #To get the filename from client
+    def exposed_echo(self,file):
+        print(file)
 
 
 '''
