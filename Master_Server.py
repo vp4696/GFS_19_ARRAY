@@ -47,29 +47,54 @@ class Master_Server(rpyc.Service):
     num_chunk_servers = 4
     file_name = ''
     
-    def exposed_write(self):
+    def write(self):
         if self.file_name in self.file_map:
             pass
         self.file_map[self.file_name] = []
         b = os.path.getsize(self.file_name)
         self.size = b
         #num_chunks =self.numChunks(self.size)
-        chunks = self.exposed_allocChunks()
+        chunks = self.allocChunks()
         return chunks
     
-    def exposed_numChunks(self,size):
+    def numChunks(self,size):
         return int(math.ceil(size/self.chunksize))
 
-    def exposed_allocChunks(self):
+    def allocChunks(self):
         i=0
         chunks=[]
-        num_chunks = self.exposed_numChunks(self.size)
+        num_chunks = self.numChunks(self.size)
         for j in range(0,num_chunks):
-            self.file_map[self.file_name].append((j,i))
-            chunks.append((j,i))
+            self.file_map[self.file_name].append((j+1,i+1))
+            chunks.append((j+1,i+1))
             i=(i+1)% self.num_chunk_servers
         print(self.file_map)
         return chunks
+    
+    def connections(self):
+        conn1 = rpyc.connect("localhost", int(self.chunk_servers[1][1]))
+        conn1.root.echo()
+        conn2 = rpyc.connect("localhost", int(self.chunk_servers[2][1]))
+        conn3 = rpyc.connect("localhost", int(self.chunk_servers[3][1]))
+        conn4 = rpyc.connect("localhost", int(self.chunk_servers[4][1]))
+        
+        
+        
+    
+    def upload(self,file):
+        chunks = self.write()
+        self.connections()
+        print(chunks)
+        for i in range(0,len(chunks)):
+            k,l=chunks[i]
+            #print(k)
+            #print(l)
+        
+    def exposed_echo(self,file):
+        self.file_name = file
+        #print(self.file_name)
+        self.upload(self.file_name)
+    
 
 
 # In[ ]:
@@ -81,7 +106,7 @@ Specifies the file that needs to be uploaded
 def  f_name(fn):
     Master_Server.file_name = fn
     name = Master_Server()
-    name.exposed_write()
+    name.write()
 
 
 # In[ ]:
@@ -92,9 +117,10 @@ Main function-Launches the threaded master server
 '''
 if __name__ == "__main__":
     read_config()
-    f_name('a.txt')
-    f_name('b.txt')
+    print(Master_Server.chunk_servers)
+#     f_name('a.txt')
+#     f_name('b.txt')
     print("Master Server running")
-    t = ThreadedServer(Master_Server, port=2132)
+    t = ThreadedServer(Master_Server, port=2140)
     t.start()
 
