@@ -47,23 +47,23 @@ class Master_Server(rpyc.Service):
     num_chunk_servers = 4
     file_name = ''
     
-    def write(self):
+    def exposed_write(self):
         if self.file_name in self.file_map:
             pass
         self.file_map[self.file_name] = []
         b = os.path.getsize(self.file_name)
         self.size = b
         #num_chunks =self.numChunks(self.size)
-        chunks = self.allocChunks()
+        chunks = self.exposed_allocChunks()
         return chunks
     
-    def numChunks(self,size):
+    def exposed_numChunks(self,size):
         return int(math.ceil(size/self.chunksize))
 
-    def allocChunks(self):
+    def exposed_allocChunks(self):
         i=0
         chunks=[]
-        num_chunks = self.numChunks(self.size)
+        num_chunks = self.exposed_numChunks(self.size)
         for j in range(0,num_chunks):
             self.file_map[self.file_name].append((j,i))
             chunks.append((j,i))
@@ -72,9 +72,7 @@ class Master_Server(rpyc.Service):
         return chunks
 
 
-    #To get the filename from client
-    def exposed_echo(self,file):
-        print(file)
+# In[ ]:
 
 
 '''
@@ -83,7 +81,7 @@ Specifies the file that needs to be uploaded
 def  f_name(fn):
     Master_Server.file_name = fn
     name = Master_Server()
-    name.write()
+    name.exposed_write()
 
 
 # In[ ]:
@@ -97,6 +95,6 @@ if __name__ == "__main__":
     f_name('a.txt')
     f_name('b.txt')
     print("Master Server running")
-    t = ThreadedServer(Master_Server, port=2131)
+    t = ThreadedServer(Master_Server, port=2132)
     t.start()
 
