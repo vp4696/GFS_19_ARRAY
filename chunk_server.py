@@ -18,18 +18,6 @@ class ChunkServer(object):
 
 
     
-
-
-    
-    
-
-
-    
-    
-
-    
-
-
     def listen(self):
         self.sock.listen(5)
         while True:
@@ -38,16 +26,26 @@ class ChunkServer(object):
             threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
     def listenToClient(self, client, address):
-        to_recv=client.recv(1024).decode("utf-8")
-        chunk_server_no,chunk_id=to_recv.split(":")
+
+        to_recv=client.recv(400).decode("utf-8")
+        # chunk_server=client.recv(2048).decode("utf-8")
+        # print(chunk_id)
+        # print(chunk_server)
+        
+        # # print(to_recv)
+
+        chunk_server_no,chunk_id,dummy=to_recv.split(":")
         self.filesystem = os.getcwd()+"/"+str(chunk_server_no)
+        print(self.filesystem)
         if not os.access(self.filesystem, os.W_OK):
             os.makedirs(self.filesystem)
-        #chunk_id=client.recv(1024).decode("utf-8")
-        filename = self.filesystem+"/"+chunk_id
-        with open(filename, "wb") as f:
-            chunks_recv=client.recv(2048).decode("utf-8")
-            f.write(chunks_recv)
+        
+        filename = self.filesystem+"/"+str(chunk_id)
+        print(filename)
+        with open(filename, "w") as f:
+            chunks_recv=client.recv(2048)
+            f.write(chunks_recv.decode("utf-8"))
+        
 
         
 
