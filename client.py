@@ -12,7 +12,6 @@ def connect_to_master_server():
     s.send(bytes(fileplussize,"utf-8"))
     chunks=[]
     chunks=pickle.loads(s.recv(1024))
-    print(chunks)
     return chunks
 
 def connect_to_chunk_server(chunks):
@@ -24,33 +23,34 @@ def connect_to_chunk_server(chunks):
         s.send(b"Hi from Client")
         '''
     chunks_list=[]
-    f=open("a.txt",'rb')
-    data=f.read(200)
+    f=open("b.txt",'rb')
+    data=f.read(2048)
     #size=os.path.getsize("six.mp3")
-    print(len(chunks))
 
 
     while data:
         chunks_list.append(data)
-        data=f.read(200)
+        data=f.read(2048)
     
+    # print(len(chunks_list))
+    # print(chunks)
+    # print(len(chunks))
+    
+
     for chunk_id,chunk_server in chunks:
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),list1[chunk_server-1]))
-        to_send=str(chunk_server)+":"+str(chunk_id)
+        to_send=str(chunk_server)+":"+str(chunk_id)+":"
+        #print(to_send)
+        to_send=to_send.ljust(400,'~')
+        # print(len(to_send.encode('utf-8')))
+        #print(to_send)
         s.send(str(to_send).encode("utf-8"))
         s.send(chunks_list[chunk_id-1])
         
 
 
         
-    
-
-
-
-
-
-
 
 if __name__=="__main__":
     chunks=connect_to_master_server()
