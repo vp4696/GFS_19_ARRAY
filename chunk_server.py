@@ -5,14 +5,11 @@ import math
 import pickle
 
 class ChunkServer(object):
+
+    
     
     def __init__(self, host, port):
-        self.chunksize=2048
-        self.chunk_servers = {}
-        self.file_map = {}
-        self.size = 0
-        self.num_chunk_servers = 4
-        self.filename = ''
+        self.filesystem=""
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,8 +38,16 @@ class ChunkServer(object):
             threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
     def listenToClient(self, client, address):
-        msg=client.recv(1024).decode("utf-8")
-        print(msg)
+        to_recv=client.recv(1024).decode("utf-8")
+        chunk_server_no,chunk_id=to_recv.split(":")
+        self.filesystem = os.getcwd()+"/"+str(chunk_server_no)
+        if not os.access(self.filesystem, os.W_OK):
+            os.makedirs(self.filesystem)
+        #chunk_id=client.recv(1024).decode("utf-8")
+        filename = self.filesystem+"/"+chunk_id
+        with open(filename, "wb") as f:
+            chunks_recv=client.recv(2048).decode("utf-8")
+            f.write(chunks_recv)
 
         
 
