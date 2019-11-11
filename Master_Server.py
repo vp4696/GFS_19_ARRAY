@@ -3,11 +3,14 @@ import threading
 import os
 import math
 import pickle
+import sys
+
+MAX=2048
 
 class MasterServer(object):
     
     def __init__(self, host, port):
-        self.chunksize=2048
+        self.chunksize=MAX
         self.chunk_servers = {}
         self.file_map = {}
         self.size = 0
@@ -40,9 +43,7 @@ class MasterServer(object):
     def write(self):
         if self.filename in self.file_map:
             pass
-        self.file_map[self.filename] = []
-        
-        
+        self.file_map[self.filename] = []  
         #num_chunks =self.numChunks(self.size)
         chunks = self.allocChunks()
         return chunks
@@ -67,14 +68,15 @@ class MasterServer(object):
             threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
     def listenToClient(self, client, address):
-        fileplussize=client.recv(1024).decode("utf-8")
+        fileplussize=client.recv(MAX).decode("utf-8")
         self.filename=fileplussize.split(":")[0]
         self.size=int(fileplussize.split(":")[1])
-        print(self.filename)
-        print(self.size)
+        # print(self.filename)
+        # print(self.size)
         chunks=self.upload()
         data=pickle.dumps(chunks)
-        print(type(data))
+        # print(type(data))
+        # print(sys.getsizeof(data))
         client.send(data)
         
 
