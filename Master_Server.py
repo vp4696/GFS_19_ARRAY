@@ -3,14 +3,11 @@ import threading
 import os
 import math
 import pickle
-import sys
-
-MAX=2048
 
 class MasterServer(object):
     
     def __init__(self, host, port):
-        self.chunksize=MAX
+        self.chunksize=2048
         self.chunk_servers = {}
         self.file_map = {}
         self.size = 0
@@ -43,7 +40,9 @@ class MasterServer(object):
     def write(self):
         if self.filename in self.file_map:
             pass
-        self.file_map[self.filename] = []  
+        self.file_map[self.filename] = []
+        
+        
         #num_chunks =self.numChunks(self.size)
         chunks = self.allocChunks()
         return chunks
@@ -65,19 +64,41 @@ class MasterServer(object):
         while True:
             client, address = self.sock.accept()
             client.settimeout(60)
-            threading.Thread(target = self.listenToClient,args = (client,address)).start()
+            threading.Thread(target = self.commonlisten,args = (client,address)).start()
+           
+           
 
-    def listenToClient(self, client, address):
-        fileplussize=client.recv(MAX).decode("utf-8")
-        self.filename=fileplussize.split(":")[0]
-        self.size=int(fileplussize.split(":")[1])
-        # print(self.filename)
-        # print(self.size)
+
+   
+
+    def listenToClient(self, client, address,filename,size):
+        
+        self.filename=filename
+        self.size=int(size)
+        print(self.filename)
+        print(self.size)
         chunks=self.upload()
         data=pickle.dumps(chunks)
-        # print(type(data))
-        # print(sys.getsizeof(data))
+        print(type(data))
         client.send(data)
+    
+
+ 
+    def listentoChunk(self,client,address):
+        s=client.recv(1024).decode("utf-8")
+        print(s)
+
+    def commonlisten(self,client,address):
+        the_decision,filename,size=client.recv(1024).decode("utf-8").split(":")
+        print(the_decision,type(the_decision))
+        if(the_decision=="chunkserver"):
+            self.listentoChunk(client,address)
+        else:
+            self.listenToClient(client,address,filename,size)
+        
+
+           
+    
         
 
 if __name__ == "__main__":
