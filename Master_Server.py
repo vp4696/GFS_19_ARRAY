@@ -4,6 +4,8 @@ import os
 import math
 import pickle
 
+chunk_port=[6467,6468,6469,6470]
+
 class MasterServer(object):
     
     def __init__(self, host, port):
@@ -42,7 +44,6 @@ class MasterServer(object):
             pass
         self.file_map[self.filename] = []
         
-        
         #num_chunks =self.numChunks(self.size)
         chunks = self.allocChunks()
         return chunks
@@ -66,40 +67,37 @@ class MasterServer(object):
             client.settimeout(60)
             threading.Thread(target = self.commonlisten,args = (client,address)).start()
            
-           
-
-
-   
-
     def listenToClient(self, client, address,filename,size):
         
         self.filename=filename
         self.size=int(size)
-        print(self.filename)
-        print(self.size)
+        # print(self.filename)
+        # print(self.size)
         chunks=self.upload()
         data=pickle.dumps(chunks)
-        print(type(data))
+        # print(type(data))
         client.send(data)
     
+    def listentoChunk(self,client,address,filename,chunkNo):
+        print(filename," FROM CHUNK-SERVER ",chunkNo)
+        chunkNo=int(chunkNo)
+        cport=chunk_port[(chunkNo)%4]
+        cport=str(cport)
+        client.send(bytes(cport,"utf-8"))
 
- 
-    def listentoChunk(self,client,address):
-        s=client.recv(1024).decode("utf-8")
-        print(s)
 
     def commonlisten(self,client,address):
-        the_decision,filename,size=client.recv(1024).decode("utf-8").split(":")
-        print(the_decision,type(the_decision))
+        the_decision,one,two=client.recv(1024).decode("utf-8").split(":")
+        # print(the_decision,type(the_decision))
         if(the_decision=="chunkserver"):
-            self.listentoChunk(client,address)
+            filename=one
+            chunk__no=two
+            self.listentoChunk(client,address,filename,chunk__no)
         else:
+            filename=one
+            size=two
             self.listenToClient(client,address,filename,size)
-        
-
-           
-    
-        
+            
 
 if __name__ == "__main__":
     while True:
