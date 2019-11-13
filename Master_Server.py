@@ -15,6 +15,7 @@ class MasterServer(object):
         self.size = 0
         self.num_chunk_servers = 4
         self.chunk_servers_info={}
+        self.fileinfo={}                        #{(filename, # of chunks)}
         self.replica={}
         self.filename = ''
         self.host = host
@@ -33,12 +34,9 @@ class MasterServer(object):
         for i in file_map.keys():
             for j in range(len(file_map[i])):
                 self.chunk_servers_info[file_map[i][j][1]].append((i,file_map[i][j][0]))
-        print(self.chunk_servers_info)
-
-
+        # print(self.chunk_servers_info)
 
         i=0
-        #chunk_servers_info1 = self.chunk_servers_info
         a1=len(self.chunk_servers_info[1])
         a2=len(self.chunk_servers_info[2])
         a3=len(self.chunk_servers_info[3])
@@ -93,9 +91,8 @@ class MasterServer(object):
                         break
             i+=1
         
-        print("The below is the chunk_server_info data structure")
-
-        print(self.chunk_servers_info)
+        # print("The below is the chunk_server_info data structure")
+        # print(self.chunk_servers_info)
 
 
         self.replica = {}
@@ -130,11 +127,8 @@ class MasterServer(object):
                 else:
                     self.replica[self.chunk_servers_info[4][i]].append(4)
             i+=1
-        print("The below is the self.replica data structure")
-        print(self.replica)
-
-
-
+        # print("The below is the self.replica data structure")
+        # print(self.replica)
 
 
     def allocChunks(self):
@@ -155,20 +149,20 @@ class MasterServer(object):
         if self.filename in self.file_map:
             pass
         self.file_map[self.filename] = []
-        
-        #num_chunks =self.numChunks(self.size)
         chunks = self.allocChunks()
+
+        num_chunks = self.numChunks(self.size)
+        self.fileinfo[self.filename]=num_chunks
+        # print(self.fileinfo)
+        
         return chunks
     
 
     def upload(self):
         chunks = self.write()
-        
         #print(chunks)
         for i in range(0,len(chunks)):
             k,l=chunks[i]
-            #print(k)
-            #print(l)
         return chunks
 
 
@@ -191,7 +185,7 @@ class MasterServer(object):
         client.send(data)
     
     def listentoChunk(self,client,address,filename,chunkNo):
-        print(filename," FROM CHUNK-SERVER ",chunkNo)
+        # print(filename," FROM CHUNK-SERVER ",chunkNo)
         chunkNo=int(chunkNo)
         # cport=chunk_port[(chunkNo)%4]
         cport=chunk_port[self.replica[(filename,chunkNo)][1]-1]
@@ -200,17 +194,31 @@ class MasterServer(object):
 
 
     def commonlisten(self,client,address):
-        the_decision,one,two=client.recv(1024).decode("utf-8").split(":")
+        the_decision,one,two,three=client.recv(1024).decode("utf-8").split(":")
         # print(the_decision,type(the_decision))
         if(the_decision=="chunkserver"):
             filename=one
             chunk__no=two
             self.listentoChunk(client,address,filename,chunk__no)
         else:
-            filename=one
-            size=two
-            self.listenToClient(client,address,filename,size)
-            
+            if(one=="upload"):
+                filename=two
+                size=three
+                self.listenToClient(client,address,filename,size)
+            elif(one=="download"):
+                filename=two
+                count=self.fileinfo.get(filename)
+                res=[]
+                while count > 0:
+                    res.append([count,self.replica[(filename,count)][0]])
+                    count=count-1
+                res.reverse()    
+                # print(res)    
+                data=pickle.dumps(res)
+                # print(type(data))
+                client.send(data)
+
+
 
 if __name__ == "__main__":
     while True:

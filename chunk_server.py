@@ -29,7 +29,7 @@ class ChunkServer(object):
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),7082))
         filenameToCS=fname
-        fname="chunkserver:"+fname+":"+chunk_id
+        fname="chunkserver:"+fname+":"+chunk_id+":dummyData"
         s.send(bytes(fname,"utf-8"))
         cport=s.recv(2048).decode("utf-8")
         self.connectToChunk(cport,filenameToCS,chunk_id,filename)
@@ -37,7 +37,7 @@ class ChunkServer(object):
     def connectToChunk(self,cport,filenameToCS,chunk_id,filename):
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),int(cport)))
-        fname="chunkserver:"+filenameToCS+":"+chunk_id+":"+str(port_num)+":"
+        fname="chunkserver:"+"kuchbhi:"+filenameToCS+":"+chunk_id+":"+str(port_num)+":"
         fname=fname.ljust(400,'~')
         s.send(bytes(fname,"utf-8"))
 
@@ -49,27 +49,40 @@ class ChunkServer(object):
     #The thread at work...accpeting each chunk from the client and storing in its directory
 
     def listenToChunk(self,client,address,one,two,three):
-        print(one,two,three)
-        # temp=self.myChunkDir
+        # print(one,two,three)
         path=self.myChunkDir+"/"+str(one)+"_"+str(two)
-        print(path)
+        # print(path)
         with open(path, "w") as f:
             c_recv=client.recv(2048)
             f.write(c_recv.decode("utf-8"))
 
+
+    def sendToClient(self,client,address,one,two,three):
+        path=self.myChunkDir+"/"+str(three)+"_"+str(two)
+        # print(path)
+        with open(path, 'rb') as f:
+            data=f.read(2048)
+            client.send(data)
 
 
     def commonlisten(self,client,address):
 
         to_recv=client.recv(400).decode("utf-8")
         # print(to_recv)
-        decision, one, two, three, dummy=to_recv.split(":")
+        decision, whatToDo, one, two, three, dummy=to_recv.split(":")
         if(decision=="client"):
-            chunk_server_no=one
-            chunk_id=two
-            filenaming=three
-            self.listenToClient(client,address,chunk_server_no,chunk_id,filenaming)
-        if(decision=="chunkserver"):
+            if(whatToDo=="upload"):
+                chunk_server_no=one
+                chunk_id=two
+                filenaming=three
+                self.listenToClient(client,address,chunk_server_no,chunk_id,filenaming)
+            if(whatToDo=="download"):
+                chunk_server_no=one
+                chunk_id=two
+                filenaming=three
+                self.sendToClient(client,address,chunk_server_no,chunk_id,filenaming)
+
+        elif(decision=="chunkserver"):
             # print(one,two,three)
             self.listenToChunk(client,address,one,two,three)
 
