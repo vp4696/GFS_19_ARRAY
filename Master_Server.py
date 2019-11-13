@@ -15,6 +15,7 @@ class MasterServer(object):
         self.size = 0
         self.num_chunk_servers = 4
         self.chunk_servers_info={}
+        self.replica = {}
         self.fileinfo={}                        #{(filename, # of chunks)}
         self.replica={}
         self.filename = ''
@@ -23,7 +24,7 @@ class MasterServer(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
-
+        
 
     def numChunks(self,size):
         return int(math.ceil(size/self.chunksize))
@@ -48,7 +49,7 @@ class MasterServer(object):
             l3=len(self.chunk_servers_info[3])
             l4=len(self.chunk_servers_info[4])
             min1 = min([l1,l2,l3,l4])
-            #print(min1)
+            # print(min1)
             if i <= a1-1:
                 for m in self.chunk_servers_info.keys():
                     if len(self.chunk_servers_info[m]) == min1 and (self.chunk_servers_info[1][i] not in self.chunk_servers_info[m]):
@@ -60,7 +61,7 @@ class MasterServer(object):
             l3=len(self.chunk_servers_info[3])
             l4=len(self.chunk_servers_info[4])
             min1 = min([l1,l2,l3,l4])
-           # print(l3)
+            # print(min1)
             if i <= a2-1:
                 for m in self.chunk_servers_info.keys():
                     if len(self.chunk_servers_info[m]) == min1 and (self.chunk_servers_info[2][i] not in self.chunk_servers_info[m]):
@@ -72,6 +73,7 @@ class MasterServer(object):
             l3=len(self.chunk_servers_info[3])
             l4=len(self.chunk_servers_info[4])
             min1 = min([l1,l2,l3,l4])
+            # print(min1)
             if i <= a3-1:
                 for m in self.chunk_servers_info.keys():
                     if len(self.chunk_servers_info[m]) == min1 and (self.chunk_servers_info[3][i] not in self.chunk_servers_info[m]):
@@ -83,6 +85,7 @@ class MasterServer(object):
             l3=len(self.chunk_servers_info[3])
             l4=len(self.chunk_servers_info[4])
             min1 = min([l1,l2,l3,l4])
+            # print(min1)
             if i <= a4-1:
                 for m in self.chunk_servers_info.keys():
                     if len(self.chunk_servers_info[m]) == min1 and (self.chunk_servers_info[4][i] not in self.chunk_servers_info[m]):
@@ -95,7 +98,6 @@ class MasterServer(object):
         # print(self.chunk_servers_info)
 
 
-        self.replica = {}
         i=0
         a1=len(self.chunk_servers_info[1])
         a2=len(self.chunk_servers_info[2])
@@ -153,7 +155,7 @@ class MasterServer(object):
 
         num_chunks = self.numChunks(self.size)
         self.fileinfo[self.filename]=num_chunks
-        # print(self.fileinfo)
+        # print(self.fileinfo)                              #{'filename':# of chunks}
         
         return chunks
     
@@ -180,6 +182,7 @@ class MasterServer(object):
         # print(self.filename)
         # print(self.size)
         chunks=self.upload()
+        self.file_map={}
         data=pickle.dumps(chunks)
         # print(type(data))
         client.send(data)
@@ -208,6 +211,7 @@ class MasterServer(object):
             elif(one=="download"):
                 filename=two
                 count=self.fileinfo.get(filename)
+                # print(count)
                 res=[]
                 while count > 0:
                     res.append([count,self.replica[(filename,count)][0]])

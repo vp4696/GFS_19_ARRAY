@@ -52,6 +52,7 @@ def connect_to_chunk_server(decision,chunks,filename):
             s.send(str(to_send).encode("utf-8"))
             s.send(chunks_list[chunk_id-1])
 
+    data=""
     if(decision=="download"):
 
             for chunk_id,chunk_server in chunks:
@@ -61,12 +62,21 @@ def connect_to_chunk_server(decision,chunks,filename):
                 to_send=to_send.ljust(400,'~')
                 s.send(str(to_send).encode("utf-8"))
                 
-                filesystem = os.getcwd()+"/Client/"+str(filename)+"_"+str(chunk_id)
+                filesystem = os.getcwd()+"/Client"
 
-                with open(filesystem, "w") as f:
-                    c_recv=s.recv(2048)
-                    f.write(c_recv.decode("utf-8"))
-                
+                if not os.access(filesystem, os.W_OK):
+                    os.makedirs(filesystem)
+
+                # filesystem=filesystem+"/"+str(filename)+"_"+str(chunk_id)
+
+                # with open(filesystem, "w") as f:
+                c_recv=s.recv(2048)
+                data += (c_recv.decode("utf-8"))
+                    # f.write(c_recv.decode("utf-8"))
+            
+            filesystem=filesystem+"/"+str(filename)            
+            with open(filesystem, "w") as f:
+                f.write(data)    
 
 if __name__=="__main__":
 
@@ -76,6 +86,7 @@ if __name__=="__main__":
         decision, filename=getCommand.split(' ')
         if(decision=="upload"):
             chunks=connect_to_master_server(getCommand)
+            # print(chunks)
             connect_to_chunk_server(decision,chunks,filename)
             print("Uploading of file done!!!")
         if(decision=="download"):
