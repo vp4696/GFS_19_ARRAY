@@ -6,7 +6,7 @@ import pickle
 def connect_to_master_server():
     s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     s.connect((socket.gethostbyname('localhost'),7082))
-    filename="file.txt"
+    filename="file2.txt"
     size=str(os.path.getsize(filename))
     
     fileplussize="client"+":"+filename+":"+size
@@ -21,7 +21,7 @@ def connect_to_chunk_server(chunks):
     list1=[6467,6468,6469,6470]
     
     chunks_list=[]
-    f=open("file.txt",'rb')
+    f=open("file2.txt",'rb')
     data=f.read(2048)
     #size=os.path.getsize("six.mp3")
 
@@ -34,7 +34,7 @@ def connect_to_chunk_server(chunks):
     for chunk_id,chunk_server in chunks:
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),list1[chunk_server-1]))
-        filename="file.txt"
+        filename="file2.txt"
         to_send="client:"+str(chunk_server)+":"+str(chunk_id)+":"+filename+":"
         #print(to_send)
         to_send=to_send.ljust(400,'~')

@@ -106,22 +106,29 @@ class MasterServer(object):
         a4=len(self.chunk_servers_info[4])
         max1=max(a1,a2,a3,a4)
         while i < max1:
-            if self.chunk_servers_info[1][i] not in self.replica.keys():
-                self.replica[self.chunk_servers_info[1][i]] = [1]
-            else:
-                self.replica[self.chunk_servers_info[1][i]].append(1)
-            if self.chunk_servers_info[2][i] not in self.replica.keys():
-                self.replica[self.chunk_servers_info[2][i]] = [2]
-            else:
-                self.replica[self.chunk_servers_info[2][i]].append(2)
-            if self.chunk_servers_info[3][i] not in self.replica.keys():
-                self.replica[self.chunk_servers_info[3][i]] = [3]
-            else:
-                self.replica[self.chunk_servers_info[3][i]].append(3)
-            if self.chunk_servers_info[4][i] not in self.replica.keys():
-                self.replica[self.chunk_servers_info[4][i]] = [4]
-            else:
-                self.replica[self.chunk_servers_info[4][i]].append(4)
+            if i <= a1-1:
+                if self.chunk_servers_info[1][i] not in self.replica.keys():
+                    self.replica[self.chunk_servers_info[1][i]] = [1]
+                else:
+                    self.replica[self.chunk_servers_info[1][i]].append(1)
+
+            if i <= a2-1:
+                if self.chunk_servers_info[2][i] not in self.replica.keys():
+                    self.replica[self.chunk_servers_info[2][i]] = [2]
+                else:
+                    self.replica[self.chunk_servers_info[2][i]].append(2)
+
+            if i <= a3-1:
+                if self.chunk_servers_info[3][i] not in self.replica.keys():
+                    self.replica[self.chunk_servers_info[3][i]] = [3]
+                else:
+                    self.replica[self.chunk_servers_info[3][i]].append(3)
+
+            if i <= a4-1:
+                if self.chunk_servers_info[4][i] not in self.replica.keys():
+                    self.replica[self.chunk_servers_info[4][i]] = [4]
+                else:
+                    self.replica[self.chunk_servers_info[4][i]].append(4)
             i+=1
         print("The below is the self.replica data structure")
         print(self.replica)
@@ -186,7 +193,8 @@ class MasterServer(object):
     def listentoChunk(self,client,address,filename,chunkNo):
         print(filename," FROM CHUNK-SERVER ",chunkNo)
         chunkNo=int(chunkNo)
-        cport=chunk_port[(chunkNo)%4]
+        # cport=chunk_port[(chunkNo)%4]
+        cport=chunk_port[self.replica[(filename,chunkNo)][1]-1]
         cport=str(cport)
         client.send(bytes(cport,"utf-8"))
 

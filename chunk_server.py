@@ -8,6 +8,7 @@ class ChunkServer(object):
     
     def __init__(self, host, port):
         self.filesystem=""
+        self.myChunkDir=""
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,25 +25,39 @@ class ChunkServer(object):
             threading.Thread(target = self.commonlisten,args = (client,address)).start()
 
 
-    def connect_to_master(self,fname,chunkno):
+    def connect_to_master(self,fname,chunk_id,filename):
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),7082))
-        fname="chunkserver:"+fname+":"+chunkno
+        filenameToCS=fname
+        fname="chunkserver:"+fname+":"+chunk_id
         s.send(bytes(fname,"utf-8"))
         cport=s.recv(2048).decode("utf-8")
-        self.connectToChunk(cport)
+        self.connectToChunk(cport,filenameToCS,chunk_id,filename)
 
-    def connectToChunk(self,cport):
+    def connectToChunk(self,cport,filenameToCS,chunk_id,filename):
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((socket.gethostbyname('localhost'),int(cport)))
-        fname="chunkserver:"+"kuchbhi"+":"+"FROM--CHUNK:"+str(port_num)+":"
+        fname="chunkserver:"+filenameToCS+":"+chunk_id+":"+str(port_num)+":"
         fname=fname.ljust(400,'~')
         s.send(bytes(fname,"utf-8"))
+
+        f1=open(filename,'rb')
+        data=f1.read(2048)
+        s.send(data)
+
 
     #The thread at work...accpeting each chunk from the client and storing in its directory
 
     def listenToChunk(self,client,address,one,two,three):
         print(one,two,three)
+        # temp=self.myChunkDir
+        path=self.myChunkDir+"/"+str(one)+"_"+str(two)
+        print(path)
+        with open(path, "w") as f:
+            c_recv=client.recv(2048)
+            f.write(c_recv.decode("utf-8"))
+
+
 
     def commonlisten(self,client,address):
 
@@ -62,6 +77,7 @@ class ChunkServer(object):
 
         #chunk_server_no,chunk_id,filenaming,dummy=to_recv.split(":")
         self.filesystem = os.getcwd()+"/"+str(chunk_server_no)
+        self.myChunkDir=self.filesystem
         # print(self.filesystem)
         if not os.access(self.filesystem, os.W_OK):
             os.makedirs(self.filesystem)
@@ -71,7 +87,7 @@ class ChunkServer(object):
         with open(filename, "w") as f:
             chunks_recv=client.recv(2048)
             f.write(chunks_recv.decode("utf-8"))
-        self.connect_to_master(filename,chunk_server_no)
+        self.connect_to_master(filenaming,chunk_id,filename)
         
 
 if __name__ == "__main__":
