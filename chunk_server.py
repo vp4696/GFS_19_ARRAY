@@ -2,6 +2,7 @@ import socket
 import threading
 import os
 import math
+import sys
 import pickle
 
 class ChunkServer(object):
@@ -52,9 +53,10 @@ class ChunkServer(object):
         # print(one,two,three)
         path=self.myChunkDir+"/"+str(one)+"_"+str(two)
         # print(path)
-        with open(path, "w") as f:
+        with open(path, 'wb') as f:
             c_recv=client.recv(2048)
-            f.write(c_recv.decode("utf-8"))
+            # f.write(c_recv.decode("utf-8"))
+            f.write(c_recv)
 
 
     def sendToClient(self,client,address,one,two,three):
@@ -97,16 +99,19 @@ class ChunkServer(object):
         
         filename = self.filesystem+"/"+str(filenaming)+"_"+str(chunk_id)
         # print(filename)
-        with open(filename, "w") as f:
+        with open(filename, 'wb') as f:
             chunks_recv=client.recv(2048)
-            f.write(chunks_recv.decode("utf-8"))
+            # f.write(chunks_recv.decode("utf-8"))
+            f.write(chunks_recv)
         self.connect_to_master(filenaming,chunk_id,filename)
         
 
 if __name__ == "__main__":
     while True:
         try:
-            port_num = int(input("Enter the port number of the chunk_server"))
+            # port_num = int(input("Enter the port number of the chunk_server"))
+            port_num = int(sys.argv[1])
+            # print(port_num)
             break
         except ValueError:
             pass

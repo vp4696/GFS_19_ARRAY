@@ -15,13 +15,20 @@ def connect_to_master_server(getCommand):
         fileplussize="client"+":upload:"+filename+":"+size
         s.send(bytes(fileplussize,"utf-8"))
         chunks=[]
-        chunks=pickle.loads(s.recv(2048))
+        getz=s.recv(2048).decode('utf-8')
+        getz=int(getz)+1000
+        # getz=int(getz)
+        # print(getz)
+        chunks=pickle.loads(s.recv(getz))
         return chunks
     if(decision=="download"):
         f_download="client"+":download:"+filename+":dummydata"
         s.send(bytes(f_download,"utf-8"))
         chunks=[]
-        chunks=pickle.loads(s.recv(2048))
+        getz1=s.recv(2048).decode('utf-8')
+        getz1=int(getz1)+1000
+        # print(getz)
+        chunks=pickle.loads(s.recv(getz1))
         return chunks
 
 
@@ -67,16 +74,18 @@ def connect_to_chunk_server(decision,chunks,filename):
                 if not os.access(filesystem, os.W_OK):
                     os.makedirs(filesystem)
 
-                # filesystem=filesystem+"/"+str(filename)+"_"+str(chunk_id)
+                filesystem=filesystem+"/"+str(filename)            
+                with open(filesystem, 'ab') as f:
 
-                # with open(filesystem, "w") as f:
-                c_recv=s.recv(2048)
-                data += (c_recv.decode("utf-8"))
+                    c_recv=s.recv(2048)
+                    # print(c_recv)
+                # data += (c_recv)
+                    f.write(c_recv)
+                # data += (c_recv.decode("utf-8"))
                     # f.write(c_recv.decode("utf-8"))
             
-            filesystem=filesystem+"/"+str(filename)            
-            with open(filesystem, "w") as f:
-                f.write(data)    
+            
+                # f.write(data)    
 
 if __name__=="__main__":
 

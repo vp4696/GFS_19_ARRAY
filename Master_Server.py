@@ -3,6 +3,7 @@ import threading
 import os
 import math
 import pickle
+import sys
 
 chunk_port=[6467,6468,6469,6470]
 
@@ -180,9 +181,11 @@ class MasterServer(object):
         self.filename=filename
         self.size=int(size)
         # print(self.filename)
-        # print(self.size)
         chunks=self.upload()
         self.file_map={}
+        default_size = sys.getsizeof(0)
+        size=str(sys.getsizeof(chunks,default_size)).encode('utf-8')
+        client.send(bytes(size))
         data=pickle.dumps(chunks)
         # print(type(data))
         client.send(data)
@@ -219,7 +222,9 @@ class MasterServer(object):
                 res.reverse()    
                 # print(res)    
                 data=pickle.dumps(res)
-                # print(type(data))
+                default_size = sys.getsizeof(0)
+                sendsize=str(sys.getsizeof(data,default_size)).encode('utf-8')
+                client.send(bytes(sendsize))
                 client.send(data)
 
 
