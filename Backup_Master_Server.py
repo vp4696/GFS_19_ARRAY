@@ -9,13 +9,12 @@ import copy
 import time
 
 chunk_port=[6467,6468,6469,6470]
-i=0
 
 class MasterServer(object):
     
-    def __init__(self, host, port, replica, uploaded_file, fileinfo, file_list):
+    def __init__(self, host, port):
         self.chunksize=2048
-        self.uploaded_file=uploaded_file
+        self.uploaded_file=[]
         self.chunk_servers = {}
         self.file_map = {}
         self.size = 0
@@ -23,14 +22,13 @@ class MasterServer(object):
         self.chunk_servers_info={}
         self.chunk_servers_chunk_count={}
         self.chunk_servers_chunk_count_present={}
-        self.replica = replica
+        self.replica = {}
         self.chunkserver_down1=[]
         self.chunkserver_down2=[]
         self.chunkserver_down3=[]
         self.chunkserver_down4=[]
-        self.fileinfo=fileinfo                        #{(filename, # of chunks)}
+        self.fileinfo={}                        #{(filename, # of chunks)}
         self.active_list=[]
-        self.all_file_info=file_list
         self.filename = ''
         self.host = host
         self.port = port
@@ -119,8 +117,8 @@ class MasterServer(object):
         for j in range(0,num_chunks):
             mV = sorted(self.chunk_servers_chunk_count_present.items(), key=lambda x:x[1])
             minV=mV[0][0]
-            print("minV",minV)
-            print(j+1,self.active_list[self.active_list.index(minV)],minV)
+            # print(j+1,minV)
+            # print(j+1,self.active_list[self.active_list.index(minV)])
             self.file_map[self.filename].append((j+1,self.active_list[self.active_list.index(minV)]))
             self.chunk_servers_chunk_count_present[minV] += 1
             self.chunk_servers_chunk_count[minV] += 1
@@ -147,136 +145,113 @@ class MasterServer(object):
         for i in range(0,len(chunks)):
             k,l=chunks[i]
         return chunks
-    def do_the_deed(self,flag):
+
+
+    def listen(self):
+            self.sock.listen(5)
+            for i in range(1,5):
+                self.chunk_servers_chunk_count[i]=0
+            while True:
+                client, address = self.sock.accept()
+                client.settimeout(60)
+                threading.Thread(target = self.commonlisten,args = (client,address)).start()
+            
+    def listenToClient(self, client, address,filename,size):
+        self.filename=filename
+        self.size=int(size)
+        # print(self.filename)
+        if filename not in self.uploaded_file:
+            self.all_file_info[filename]=0
+            # print(self.all_file_info)
+            self.uploaded_file.append(filename)
+            chunks=self.upload()
+
+            result=str(self.replica)
+            names=str(self.uploaded_file)
+            names1=str(self.fileinfo)
+            result=result+"\n"+names+"\n"+names1
+            with open("log_file.txt","w") as f:
+                f.write(result)
+            
+            self.file_map={}
+            # print("Back3")
+            data=pickle.dumps(chunks)
+            # print("CS_count",self.chunk_servers_chunk_count)
+            self.chunk_servers_info={}
+            self.chunk_servers_chunk_count_present={}
+            # client.send(b'Upload')
+            aa="Upload"
+            msg=pickle.dumps(aa)
+            client.send(msg)
+            time.sleep(0.3)
+            client.send(data)
+        else:
+            self.chunk_servers_info={}
+            self.chunk_servers_chunk_count_present={}
+            aa="Present"
+            msg=pickle.dumps(aa)
+            client.send(msg)
+    
+    def listentoChunk(self,client,address,filename,chunkNo,recv_port):
+        chunkNo=int(chunkNo)
+        cport=chunk_port[self.replica[(filename,chunkNo)][1]-1]
+        if cport==int(recv_port):
+            cport=chunk_port[self.replica[(filename,chunkNo)][0]-1]
+        cport=str(cport)
+        client.send(bytes(cport,"utf-8"))
+
         
+    def do_the_deed(self,flag):
         if flag==1:
-            #print((self.chunkserver_down1))
-            for i in self.chunkserver_down1:
-                if i[1]==1:
-                    secondary=self.replica[i[0]][1]
-                elif i[1]==0:
-                    secondary=self.replica[i[0]][0]
-                   
-                ind=self.active_list.index(secondary)
-                tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                #print(chunk_port[tertiary-1])
-                self.chunk_servers_chunk_count[tertiary]+=1
-                
-                
-                s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
-                # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
-                stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
-                s1.send(bytes(stri,"utf-8"))
-                s1.close() 
-                self.replica[i[0]][0]=secondary 
-                self.replica[i[0]][1]=tertiary
-                # print(self.replica[i[0]][0])
-                # print(self.replica[i[0]][1])
-                    
-
-
-
+            print(self.chunkserver_down1)
         if flag==2:
-            #print(self.chunkserver_down2)
-            for i in self.chunkserver_down2:
-                if i[1]==1:
-                    secondary=self.replica[i[0]][1]
-                elif i[1]==0:
-                    secondary=self.replica[i[0]][0]
-                   
-                ind=self.active_list.index(secondary)
-                tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
-                self.chunk_servers_chunk_count[tertiary]+=1
-                
-                
-                s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
-                # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
-                stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
-                s1.send(bytes(stri,"utf-8"))
-                s1.close() 
-                self.replica[i[0]][0]=secondary 
-                self.replica[i[0]][1]=tertiary   
-
+            print(self.chunkserver_down2)
         if flag==3:
-            #print(self.chunkserver_down3)
-           
-            
-            for i in self.chunkserver_down3:
-                if i[1]==1:
-                    secondary=self.replica[i[0]][1]
-                elif i[1]==0:
-                    secondary=self.replica[i[0]][0]
-                   
-                ind=self.active_list.index(secondary)
-                
-                tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
-                self.chunk_servers_chunk_count[tertiary]+=1
-                s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
-                    
-                stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
-                s1.send(bytes(stri,"utf-8"))
-                s1.close() 
-                self.replica[i[0]][0]=secondary 
-                self.replica[i[0]][1]=tertiary  
-
+            print(self.chunkserver_down3)
         if flag==4:
-            #print(self.chunkserver_down4)
-            
-            
-            for i in self.chunkserver_down4:
-                if i[1]==1:
-                    secondary=self.replica[i[0]][1]
-                    
-                    
-                elif i[1]==0:
-                    secondary=self.replica[i[0]][0]
-                   
-                ind=self.active_list.index(secondary)
-                
-                tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
-                self.chunk_servers_chunk_count[tertiary]+=1
-                
-                
-                s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
-                # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
-                stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
-                s1.send(bytes(stri,"utf-8"))
-                s1.close() 
-                self.replica[i[0]][0]=secondary 
-                self.replica[i[0]][1]=tertiary      
+            print(self.chunkserver_down4)
 
         print("The active file list inside the dothedeeds",end="->")
         print(self.active_list)
+   
+
+    def lease_timer(self,cal_time,filename):
+        # print("Timer started!!!")
+        start = time.time()
+        time.clock()    
+        elapsed = 0
+        while elapsed < cal_time and self.all_file_info[filename]!=0:
+            elapsed = time.time() - start
+            time.sleep(1)
+        self.all_file_info[filename]=0
+        # print("File is free!!!")
 
 
-    def heartbeat(self):
-        while True:
-            time.sleep(10)
-            
 
+    def commonlisten(self,client,address):
+        
+        if os.path.exists("log_file.txt"):        
+                with open("log_file.txt","r") as f:
+                    if os.stat("log_file.txt").st_size != 0:
+                        data=f.readlines()
+                        str1 = ''.join(data)
+                        # print(str1)
+                        data1,data2,data3,data4=str1.split("\n",3)
+                        self.replica=eval(data1)
+                        data2=data2.replace('\'', '') 
+                        self.fileinfo=eval(data3)
+                        self.all_file_info=eval(data4)
+                        self.uploaded_file=data2.strip('][').split(', ')
+
+
+        the_decision,one,two,three=client.recv(1024).decode("utf-8").split(":")
+
+        if(the_decision=="chunkserver"):
+            filename=one
+            chunk__no=two
+            recv_port=three
+            self.listentoChunk(client,address,filename,chunk__no,recv_port)
+        elif (the_decision=="client"):
             s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             s2=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             s3=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -365,24 +340,24 @@ class MasterServer(object):
             
                 flag[3]=1
 
-            print(flag)
+            # print(flag)
 
-            if flag[0]==1:
-                self.do_the_deed(1)
-            if flag[1]==1:
-                self.do_the_deed(2)
-            if flag[2]==1:
-                self.do_the_deed(3)
-            if flag[3]==1:
-                self.do_the_deed(4)
+            # if flag[0]==1:
+            #     self.do_the_deed(1)
+            # if flag[1]==1:
+            #     self.do_the_deed(2)
+            # if flag[2]==1:
+            #     self.do_the_deed(3)
+            # if flag[3]==1:
+            #     self.do_the_deed(4)
             
 
                 
             
             
                 
-            print("The active list is",end=" ")
-            print("AL",self.active_list)
+            # print("The active list is",end=" ")
+            # print("AL",self.active_list)
             for i in self.active_list:
                 self.chunk_servers_info[i]=[]
             # print("Chunk server info",self.chunk_servers_info)                
@@ -391,101 +366,6 @@ class MasterServer(object):
             s2.close()
             s3.close()
             s4.close()
-   
-
-
-    def listen(self):
-        global i
-        if i<1:
-            thread=threading.Thread(target=self.heartbeat,args=())
-            thread.start()
-            i+=1
-
-
-
-
-
-
-        self.sock.listen(5)
-        for i in range(1,5):
-            self.chunk_servers_chunk_count[i]=0
-        while True:
-            client, address = self.sock.accept()
-            client.settimeout(60)
-            threading.Thread(target = self.commonlisten,args = (client,address)).start()
-            
-    def listenToClient(self, client, address,filename,size):
-        self.filename=filename
-        self.size=int(size)
-        # print(self.filename)
-        if filename not in self.uploaded_file:
-            self.all_file_info[filename]=0
-            # print(self.all_file_info)
-            self.uploaded_file.append(filename)
-            chunks=self.upload()
-
-            result=str(self.replica)
-            names=str(self.uploaded_file)
-            names1=str(self.fileinfo)
-            names2=str(self.all_file_info)
-            result=result+"\n"+names+"\n"+names1+"\n"+names2
-            with open("log_file.txt","w+") as f:
-                f.write(result)
-            
-            self.file_map={}
-            data=pickle.dumps(chunks)
-            # print("CS_count",self.chunk_servers_chunk_count)
-            self.chunk_servers_info={}
-            self.chunk_servers_chunk_count_present={}
-            # client.send(b'Upload')
-            aa="Upload"
-            msg=pickle.dumps(aa)
-            client.send(msg)
-            time.sleep(0.3)
-            client.send(data)
-        else:
-            self.chunk_servers_info={}
-            self.chunk_servers_chunk_count_present={}
-            aa="Present"
-            msg=pickle.dumps(aa)
-            client.send(msg)
-    
-    def listentoChunk(self,client,address,filename,chunkNo,recv_port):
-        chunkNo=int(chunkNo)
-        cport=chunk_port[self.replica[(filename,chunkNo)][1]-1]
-        if cport==int(recv_port):
-            cport=chunk_port[self.replica[(filename,chunkNo)][0]-1]
-        cport=str(cport)
-        client.send(bytes(cport,"utf-8"))
-
-        
-    
-   
-
-    def lease_timer(self,cal_time,filename):
-        # print("Timer started!!!")
-        start = time.time()
-        time.clock()    
-        elapsed = 0
-        while elapsed < cal_time and self.all_file_info[filename]!=0:
-            elapsed = time.time() - start
-            time.sleep(1)
-        self.all_file_info[filename]=0
-        # print("File is free!!!")
-
-
-    def commonlisten(self,client,address):
-        
-        the_decision,one,two,three=client.recv(1024).decode("utf-8").split(":")
-
-        if(the_decision=="chunkserver"):
-            filename=one
-            chunk__no=two
-            recv_port=three
-            self.listentoChunk(client,address,filename,chunk__no,recv_port)
-        elif (the_decision=="client"):
-            
-            
             
             
             if(one=="upload"):
@@ -505,12 +385,11 @@ class MasterServer(object):
                         res.append([count,self.replica[(filename,count)][1]])
                         count=count-1
                 res.reverse()    
-                # print(res)
                 self.chunk_servers_info={}
                 self.chunk_servers_chunk_count_present={}
                 data=pickle.dumps(res)
                 client.send(data)
-            
+
             elif(one=="lease"):
                 filename=two
                 print("Lease for", filename)
@@ -531,7 +410,7 @@ class MasterServer(object):
                     # print(aa)
                     msg=pickle.dumps(aa)
                     client.send(msg)    
-            
+
             elif(one=="unlease"):
                 filename=two
                 print("UnLease for", filename)
@@ -550,30 +429,9 @@ if __name__ == "__main__":
     while True:
         
         try:
-            port_num = 7082
+            port_num = 7083
             break
         except ValueError:
             pass
-
-    data=''            
-    replica={}
-    uploaded_file=[]
-    fileinfo={}
-    file_list={}
-    if os.path.exists("log_file.txt"):        
-        with open("log_file.txt","r") as f:
-            if os.stat("log_file.txt").st_size != 0:
-                data=f.readlines()
-                str1 = ''.join(data)
-                # print(str1)
-                data1,data2,data3,data4=str1.split("\n",3)
-                replica=eval(data1)
-                data2=data2.replace('\'', '') 
-                fileinfo=eval(data3)
-                file_list=eval(data4)
-                uploaded_file=data2.strip('][').split(', ')
-            
     print("Master Server Running")
-    MasterServer('',port_num,replica,uploaded_file,fileinfo, file_list).listen()
-
-
+    MasterServer('',port_num).listen()
