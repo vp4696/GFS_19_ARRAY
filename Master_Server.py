@@ -29,6 +29,8 @@ class MasterServer(object):
         self.chunkserver_down3=[]
         self.chunkserver_down4=[]
         self.fileinfo=fileinfo                        #{(filename, # of chunks)}
+        self.file_table={}
+        self.file_size_info={}
         self.active_list=[]
         self.all_file_info=file_list
         self.filename = ''
@@ -105,10 +107,7 @@ class MasterServer(object):
             i+=1
         # print(self.replica)
         
-        result=str(self.replica)
-        with open("log_file.txt","w") as f:
-            f.write(result)
-
+        # result=str(self.replica)
 
     def allocChunks(self):
         i=0
@@ -117,19 +116,47 @@ class MasterServer(object):
         # print("In alloc chunks",self.active_list)
         # print(self.chunk_servers_chunk_count)
         for j in range(0,num_chunks):
+            # print(self.chunk_servers_chunk_count_present)
             mV = sorted(self.chunk_servers_chunk_count_present.items(), key=lambda x:x[1])
             minV=mV[0][0]
-            print("minV",minV)
-            print(j+1,self.active_list[self.active_list.index(minV)],minV)
+            # print("minV",minV)
+            # print(j+1,self.active_list[self.active_list.index(minV)],minV)
             self.file_map[self.filename].append((j+1,self.active_list[self.active_list.index(minV)]))
             self.chunk_servers_chunk_count_present[minV] += 1
             self.chunk_servers_chunk_count[minV] += 1
             chunks.append((j+1,self.active_list[self.active_list.index(minV)]))
             i=(i+1)% len(self.active_list)
         # print(self.file_map)
+        self.file_table.update(self.file_map)
         self.chunkserverinfo(self.file_map)
         return chunks
 
+    def allocChunks_update(self,num_chunks_old,num_chunks_new):
+        i=0
+        chunks=self.file_table[self.filename]
+        for j in range(num_chunks_old,num_chunks_new):
+            mV = sorted(self.chunk_servers_chunk_count_present.items(), key=lambda x:x[1])
+            minV=mV[0][0]
+            # print(j+1,minV)
+            # print(j+1,self.active_list[self.active_list.index(minV)])
+            self.file_map[self.filename].append((j+1,self.active_list[self.active_list.index(minV)]))
+            self.chunk_servers_chunk_count_present[minV] += 1
+            self.chunk_servers_chunk_count[minV] += 1
+            chunks.append((j+1,self.active_list[self.active_list.index(minV)]))
+            i=(i+1)% len(self.active_list)
+        # print(self.file_map)
+        # print(chunks)
+        self.file_table.update(self.file_map)
+        self.chunkserverinfo(self.file_map)
+        self.file_table[self.filename].append(chunks)
+        chunks1=[]
+        for i in self.replica.keys():
+            if i[0] == self.filename:
+                for  j in range(1,num_chunks_new+1):
+                    if (j,self.replica[(self.filename,j)][0]) not in chunks1:
+                        chunks1.append((j,self.replica[(self.filename,j)][0]))
+        chunks = copy.deepcopy(chunks1)
+        return chunks
 
     def write(self):
         if self.filename in self.file_map:
@@ -144,9 +171,23 @@ class MasterServer(object):
 
     def upload(self):
         chunks = self.write()
-        for i in range(0,len(chunks)):
-            k,l=chunks[i]
         return chunks
+
+
+    def write_update(self):
+        if self.filename in self.file_map:
+            pass
+        self.file_map[self.filename] = []
+        
+        num_chunks_old = len(self.file_table[self.filename])
+        num_chunks = self.numChunks(self.size)
+        # print("Old chunks count : ",num_chunks_old)
+        # print("new chunks count : ",num_chunks)
+        chunks = self.allocChunks_update(num_chunks_old,num_chunks)
+        self.fileinfo[self.filename]=num_chunks
+        return chunks
+
+
     def do_the_deed(self,flag):
         
         if flag==1:
@@ -162,13 +203,9 @@ class MasterServer(object):
                 #print(chunk_port[tertiary-1])
                 self.chunk_servers_chunk_count[tertiary]+=1
                 
-                
                 s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
                 s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
+          
                 # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
                 stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
                 s1.send(bytes(stri,"utf-8"))
@@ -178,9 +215,6 @@ class MasterServer(object):
                 # print(self.replica[i[0]][0])
                 # print(self.replica[i[0]][1])
                     
-
-
-
         if flag==2:
             #print(self.chunkserver_down2)
             for i in self.chunkserver_down2:
@@ -191,16 +225,12 @@ class MasterServer(object):
                    
                 ind=self.active_list.index(secondary)
                 tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
+                # print(chunk_port[tertiary-1])
                 self.chunk_servers_chunk_count[tertiary]+=1
-                
-                
+                   
                 s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
                 s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
+              
                 # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
                 stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
                 s1.send(bytes(stri,"utf-8"))
@@ -210,8 +240,7 @@ class MasterServer(object):
 
         if flag==3:
             #print(self.chunkserver_down3)
-           
-            
+                    
             for i in self.chunkserver_down3:
                 if i[1]==1:
                     secondary=self.replica[i[0]][1]
@@ -221,14 +250,10 @@ class MasterServer(object):
                 ind=self.active_list.index(secondary)
                 
                 tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
+                # print(chunk_port[tertiary-1])
                 self.chunk_servers_chunk_count[tertiary]+=1
                 s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
+                s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))            
                     
                 stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
                 s1.send(bytes(stri,"utf-8"))
@@ -237,30 +262,25 @@ class MasterServer(object):
                 self.replica[i[0]][1]=tertiary  
 
         if flag==4:
-            #print(self.chunkserver_down4)
-            
+            #print(self.chunkserver_down4)       
             
             for i in self.chunkserver_down4:
                 if i[1]==1:
                     secondary=self.replica[i[0]][1]
-                    
-                    
+                                
                 elif i[1]==0:
                     secondary=self.replica[i[0]][0]
                    
                 ind=self.active_list.index(secondary)
                 
                 tertiary=self.active_list[(ind+1)%len(self.active_list)]
-                print(chunk_port[tertiary-1])
+                # print(chunk_port[tertiary-1])
                 self.chunk_servers_chunk_count[tertiary]+=1
                 
                 
                 s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
                 s1.connect((socket.gethostbyname('localhost'),chunk_port[secondary-1]))
-                # print(i[0],end="---->")
-                # print(ind,end="---->")
-                # print(tertiary)
-                
+              
                 # stri="swap"+":"+str(i[0])+":"+str(ind)+":"+str(tertiary)
                 stri="swap"+":"+str(i[0])+":"+str(secondary)+":"+str(chunk_port[tertiary-1])
                 s1.send(bytes(stri,"utf-8"))
@@ -268,15 +288,13 @@ class MasterServer(object):
                 self.replica[i[0]][0]=secondary 
                 self.replica[i[0]][1]=tertiary      
 
-        print("The active file list inside the dothedeeds",end="->")
-        print(self.active_list)
-
+        # print("The active file list inside the dothedeeds",end="->")
+        # print(self.active_list)
 
     def heartbeat(self):
         while True:
-            time.sleep(10)
+            time.sleep(6)
             
-
             s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             s2=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             s3=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -288,8 +306,13 @@ class MasterServer(object):
                 if 1 not in self.active_list:
                     self.active_list.append(1)
                 flag[0]=0
-                self.chunk_servers_chunk_count_present[1]=self.chunk_servers_chunk_count.get(1)
+                # self.chunk_servers_chunk_count_present[1]=self.chunk_servers_chunk_count.get(1)
+                if 1 not in self.chunk_servers_chunk_count_present:
+                    self.chunk_servers_chunk_count_present[1]=0
             except:
+                
+                if 1 in self.chunk_servers_chunk_count_present:
+                    del self.chunk_servers_chunk_count_present[1]
                 self.chunkserver_down1=[]
                 keys_rep=list(self.replica.keys())
                 value_rep=list(self.replica.values())
@@ -306,12 +329,15 @@ class MasterServer(object):
                 if 2 not in self.active_list:
                     self.active_list.append(2)
                 flag[1]=0
-                self.chunk_servers_chunk_count_present[2]=self.chunk_servers_chunk_count.get(2)
+                # self.chunk_servers_chunk_count_present[2]=self.chunk_servers_chunk_count.get(2)
+                if 2 not in self.chunk_servers_chunk_count_present:
+                    self.chunk_servers_chunk_count_present[2]=0
             except:
+                
+                if 2 in self.chunk_servers_chunk_count_present:
+                    del self.chunk_servers_chunk_count_present[2]
                 self.chunkserver_down2=[]
                 #print("Error from chunkserver2")
-            
-
                 keys_rep=list(self.replica.keys())
                 value_rep=list(self.replica.values())
             
@@ -320,16 +346,20 @@ class MasterServer(object):
                         self.chunkserver_down2.append((keys_rep[i],1))
                     elif(value_rep[i][1]==2):
                         self.chunkserver_down2.append((keys_rep[i],0))
-                
-            
+                           
                 flag[1]=1
             try:
                 s3.connect((socket.gethostbyname('localhost'),6469))
                 if 3 not in self.active_list:
                     self.active_list.append(3)
                 flag[2]=0
-                self.chunk_servers_chunk_count_present[3]=self.chunk_servers_chunk_count.get(3)
+                # self.chunk_servers_chunk_count_present[3]=self.chunk_servers_chunk_count.get(3)
+                if 3 not in self.chunk_servers_chunk_count_present:
+                    self.chunk_servers_chunk_count_present[3]=0
             except:
+
+                if 3 in self.chunk_servers_chunk_count_present:
+                    del self.chunk_servers_chunk_count_present[3]
                 self.chunkserver_down3=[]
                 #print("Error from chunkserver3")
 
@@ -349,8 +379,13 @@ class MasterServer(object):
                 if 4 not in self.active_list:
                     self.active_list.append(4)
                 flag[3]=0
-                self.chunk_servers_chunk_count_present[4]=self.chunk_servers_chunk_count.get(4)
+                # self.chunk_servers_chunk_count_present[4]=self.chunk_servers_chunk_count.get(4)
+                if 4 not in self.chunk_servers_chunk_count_present:
+                    self.chunk_servers_chunk_count_present[4]=0
             except:
+                # self.chunk_servers_chunk_count_present.pop("4", None)
+                if 4 in self.chunk_servers_chunk_count_present:
+                    del self.chunk_servers_chunk_count_present[4]
                 self.chunkserver_down4=[]
 
                 keys_rep=list(self.replica.keys())
@@ -365,7 +400,7 @@ class MasterServer(object):
             
                 flag[3]=1
 
-            print(flag)
+            # print(flag)
 
             if flag[0]==1:
                 self.do_the_deed(1)
@@ -375,18 +410,15 @@ class MasterServer(object):
                 self.do_the_deed(3)
             if flag[3]==1:
                 self.do_the_deed(4)
-            
-
-                
-            
-            
                 
             print("The active list is",end=" ")
             print("AL",self.active_list)
-            for i in self.active_list:
-                self.chunk_servers_info[i]=[]
-            # print("Chunk server info",self.chunk_servers_info)                
-            # print("count present",self.chunk_servers_chunk_count_present)
+
+            # print("F",self.chunk_servers_chunk_count_present)
+
+            # for i in self.active_list:
+            #     self.chunk_servers_info[i]=[]
+            
             s1.close()
             s2.close()
             s3.close()
@@ -401,11 +433,6 @@ class MasterServer(object):
             thread.start()
             i+=1
 
-
-
-
-
-
         self.sock.listen(5)
         for i in range(1,5):
             self.chunk_servers_chunk_count[i]=0
@@ -417,6 +444,10 @@ class MasterServer(object):
     def listenToClient(self, client, address,filename,size):
         self.filename=filename
         self.size=int(size)
+
+        if self.filename not in self.file_size_info.keys():
+            self.file_size_info[filename]=self.size
+
         # print(self.filename)
         if filename not in self.uploaded_file:
             self.all_file_info[filename]=0
@@ -450,6 +481,35 @@ class MasterServer(object):
             msg=pickle.dumps(aa)
             client.send(msg)
     
+    def listenToClientUpdate(self, client, address,filename,size):
+        
+        self.filename=filename
+        self.size=int(size)
+
+        if self.filename not in self.file_size_info.keys():
+            self.file_size_info[filename]=self.size
+        
+        chunks = self.write_update()
+        
+        result=str(self.replica)
+        names=str(self.uploaded_file)
+        names1=str(self.fileinfo)
+        names2=str(self.all_file_info)
+        result=result+"\n"+names+"\n"+names1+"\n"+names2
+        with open("log_file.txt","w+") as f:
+            f.write(result)
+        
+        self.file_map={}
+        data=pickle.dumps(chunks)
+        # # print("CS_count",self.chunk_servers_chunk_count)
+        self.chunk_servers_info={}
+        self.chunk_servers_chunk_count_present={}
+        aa="update"
+        msg=pickle.dumps(aa)
+        client.send(msg)
+        time.sleep(0.3)
+        client.send(data)
+
     def listentoChunk(self,client,address,filename,chunkNo,recv_port):
         chunkNo=int(chunkNo)
         cport=chunk_port[self.replica[(filename,chunkNo)][1]-1]
@@ -458,9 +518,6 @@ class MasterServer(object):
         cport=str(cport)
         client.send(bytes(cport,"utf-8"))
 
-        
-    
-   
 
     def lease_timer(self,cal_time,filename):
         # print("Timer started!!!")
@@ -483,15 +540,17 @@ class MasterServer(object):
             chunk__no=two
             recv_port=three
             self.listentoChunk(client,address,filename,chunk__no,recv_port)
-        elif (the_decision=="client"):
-            
-            
-            
-            
+        
+        elif (the_decision=="client"):       
+           
+            for i in self.active_list:
+                self.chunk_servers_info[i]=[]
+
             if(one=="upload"):
                 filename=two
                 size=three
                 self.listenToClient(client,address,filename,size)
+            
             elif(one=="download"):
                 filename=two
                 count=self.fileinfo.get(filename)
@@ -529,6 +588,8 @@ class MasterServer(object):
                         pass
                     aa="Now you can access file: "+filename
                     # print(aa)
+                    self.chunk_servers_info={}
+                    self.chunk_servers_chunk_count_present={}
                     msg=pickle.dumps(aa)
                     client.send(msg)    
             
@@ -538,6 +599,8 @@ class MasterServer(object):
                 self.all_file_info[filename]=0
                 aa="UnLease successful"
                 msg=pickle.dumps(aa)
+                self.chunk_servers_info={}
+                self.chunk_servers_chunk_count_present={}
                 client.send(msg)
                 
             elif(one=="listfiles"):
@@ -545,6 +608,12 @@ class MasterServer(object):
                 # print("FILES: ",file_list)
                 msg=pickle.dumps(file_list)
                 client.send(msg)
+
+            elif one == "update":
+                filename=two
+                size=three
+                self.listenToClientUpdate(client,address,filename,size)
+                self.file_size_info[self.filename] = size    
 
 if __name__ == "__main__":
     while True:
@@ -572,8 +641,8 @@ if __name__ == "__main__":
                 fileinfo=eval(data3)
                 file_list=eval(data4)
                 uploaded_file=data2.strip('][').split(', ')
+
+    # print(replica,fileinfo,file_list,uploaded_file)
             
     print("Master Server Running")
     MasterServer('',port_num,replica,uploaded_file,fileinfo, file_list).listen()
-
-

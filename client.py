@@ -2,6 +2,7 @@ import socket
 import os
 import pickle
 import sys
+import math 
 
 MAX=10000
 
@@ -37,6 +38,7 @@ def connect_to_master_server(getCommand, no_of_arg):
             elif "Present" in status:
                 chunks=''            
             return chunks
+            
         if(decision=="download"):
             f_download="client"+":download:"+filename+":dummydata"
             s.send(bytes(f_download,"utf-8"))
@@ -64,6 +66,24 @@ def connect_to_master_server(getCommand, no_of_arg):
             status=s.recv(2048)
             status=pickle.loads(status)
             print(status)   
+
+        if decision == "update":
+            size=str(os.path.getsize(filename))
+            fileplussize="client"+":update:"+filename+":"+size
+            #print(fileplussize)
+            s.send(bytes(fileplussize,"utf-8"))
+            chunks=[]
+            # status=s.recv(2048).decode("utf-8","ignore")
+            status=s.recv(2048)
+            status=pickle.loads(status)
+            # print(status)
+            if "update" in status:
+                chunks=pickle.loads(s.recv(MAX))
+            # elif "Present" in status:
+                # chunks=''
+            #print(chunks)            
+            return chunks
+            
 
     if no_of_arg==1:
         f_list_files="client"+":listfiles:"+"dummy1"+":dummy2"             
@@ -103,6 +123,7 @@ def connect_to_chunk_server(decision,chunks,filename):
             s.send(chunks_list[chunk_id-1])
 
     data=""
+
     if(decision=="download"):
 
             filesystem = os.getcwd()+"/Client"
@@ -126,6 +147,37 @@ def connect_to_chunk_server(decision,chunks,filename):
                 with open(filesystem, 'ab') as f:
                     c_recv=s.recv(2048)
                     f.write(c_recv)
+
+
+def connect_to_chunk_server_update(decision,chunks,filename,numChunks):
+    list1=[6467,6468,6469,6470]
+    
+    if(decision=="update"):
+        chunks_list=[]
+        f=open(filename,'rb')
+        data=f.read(2048)
+
+        while data:
+            chunks_list.append(data)
+            data=f.read(2048)
+        
+        #Sending chunks to the appropriate chunkserver
+        for chunk_id,chunk_server in chunks:
+            s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            if chunk_id >= numChunks:
+                s.connect((socket.gethostbyname('localhost'),list1[chunk_server-1]))
+                # filename="file2.txt"
+                to_send="client:"+"upload:"+str(chunk_server)+":"+str(chunk_id)+":"+filename+":"
+                #print(to_send)
+                to_send=to_send.ljust(400,'~')
+                # print(len(to_send.encode('utf-8')))
+                #print(to_send)
+                s.send(str(to_send).encode("utf-8"))
+                s.send(chunks_list[chunk_id-1])
+
+    data=""
+
+
             
 if __name__=="__main__":
 
@@ -133,6 +185,15 @@ if __name__=="__main__":
         getCommand=input()
         a=len(getCommand.split())
         # print(getCommand)
+
+        if a==1:
+            if(getCommand=="listfiles"):
+                # print(getCommand)
+                connect_to_master_server(getCommand,a)                    
+
+            if(getCommand=="exit"):
+                sys.exit()
+
         if a==2:
             decision, filename=getCommand.split(' ')
             
@@ -156,12 +217,26 @@ if __name__=="__main__":
             
             if(decision=="unlease"):
                 connect_to_master_server(getCommand,a)        
-        if a==1:
-            if(getCommand=="listfiles"):
+
+        if a==3:
+            decision, filename,filename2=getCommand.split(' ')
+            if(decision == "update"):
+                #print("file1 size before appending : ",os.path.getsize(filename1))
+                #print("file2 size before appending : ",os.path.getsize(filename2))
+                numChunks = math.ceil(os.path.getsize(filename)/2048)
+                f1=open(filename2,"rb")
+                with open(filename,"ab") as f:
+                    f.write(f1.read())
+                f1.close()
+                getCommand=decision+" "+filename
                 # print(getCommand)
-                connect_to_master_server(getCommand,a)                    
-
-            if(getCommand=="exit"):
-                sys.exit()
-
+                #print("file1 size after appending : ",os.path.getsize(filename1))
+                #print("file2 size after appending : ",os.path.getsize(filename2))
+                chunks=connect_to_master_server(getCommand,a-1)
+                # print(chunks)
+                if chunks:
+                    connect_to_chunk_server_update(decision,chunks,filename,numChunks)
+                    print("file updation successful!!!")
+                else: 
+                    print("File updation unsuccessful!!!")
 

@@ -47,8 +47,6 @@ class ChunkServer(object):
         port=self.port
         # print("asdfg",port)
         fname="chunkserver:"+fname+":"+chunk_id+":"+str(port)
-        # print("AA",end=" ")
-        # print(fname)
         s.send(bytes(fname,"utf-8"))
         cport=s.recv(2048).decode("utf-8")
         # print("AA",filename, chunk_id, cport)
@@ -119,9 +117,9 @@ class ChunkServer(object):
 
         elif(to_recv[0]=="swap"):
             
-            print(to_recv[1])
-            print(to_recv[2])
-            print(to_recv[3])
+            # print(to_recv[1])
+            # print(to_recv[2])
+            # print(to_recv[3])
             s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             s1.connect((socket.gethostbyname('localhost'),int(to_recv[3])))
             to_recv[1]=make_tuple(to_recv[1])
@@ -148,9 +146,6 @@ class ChunkServer(object):
 
     def listenToClient(self, client, address, chunk_server_no, chunk_id, filenaming):
 
-        # self.filesystem = os.getcwd()+"/"+chunk_server_no
-        # self.myChunkDir=self.filesystem
-        # print(self.filesystem)
         if not os.access(self.filesystem, os.W_OK):
             os.makedirs(self.filesystem)
         
@@ -159,6 +154,7 @@ class ChunkServer(object):
         with open(filename, 'wb') as f:
             chunks_recv=client.recv(2048)
             f.write(chunks_recv)
+
         if chunk_server_no=="1":
             self.chunkserver1_info.append((filenaming,chunk_id))
         elif chunk_server_no=="2":
@@ -168,16 +164,15 @@ class ChunkServer(object):
         elif chunk_server_no=="4":
             self.chunkserver4_info.append((filenaming,chunk_id))
         
-        
        
-        if chunk_server_no == "1":
-            print(self.chunkserver1_info)
-        elif chunk_server_no == "2":
-            print(self.chunkserver2_info)
-        elif chunk_server_no == "3":
-            print(self.chunkserver3_info)
-        elif chunk_server_no == "4":
-            print(self.chunkserver4_info)
+        # if chunk_server_no == "1":
+        #     print(self.chunkserver1_info)
+        # elif chunk_server_no == "2":
+        #     print(self.chunkserver2_info)
+        # elif chunk_server_no == "3":
+        #     print(self.chunkserver3_info)
+        # elif chunk_server_no == "4":
+        #     print(self.chunkserver4_info)
         self.connect_to_master(filenaming,chunk_id,filename)
         
         
